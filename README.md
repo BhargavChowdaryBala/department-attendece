@@ -6,7 +6,6 @@ A premium, full-stack web application designed for efficient attendance tracking
 
 *   **QR Scanner**: High-performance scanner with auto-focus and mobile-optimized flip controls.
 *   **HOD Dashboard**: Real-time "Quick Stats" (Total, Present, Absent) with dynamic filtering by **Semester** and **Branch**.
-*   **Spot Registration**: Register new students on-the-fly directly into the database.
 *   **Manual Entry**: Fast fallback for roll number entry.
 *   **PDF/CSV Export**: Generate professional attendance reports directly from the dashboard.
 *   **Concurrency Guard**: Built-in Mutex locking and Row Caching to prevent data loss during high traffic.
@@ -62,7 +61,6 @@ node server.js
 ### 🧑‍💻 For Event Coordinators
 1.  **QR Scanner Tab**: Point your camera at the student's ID/QR code. A green success badge will appear once marked.
 2.  **Manual Entry**: Use this if a student's card is damaged.
-3.  **Spot Registration**: Use this for students who are not already on the list. You will need the portal password.
 
 ### 🏛️ For HOD / Administration
 1.  Click **"HOD Login"** at the top right.

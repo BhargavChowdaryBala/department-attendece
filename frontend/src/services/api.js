@@ -48,25 +48,6 @@ export const getAttendance = async () => {
     }
 };
 
-/**
- * Registers a new student or marks an existing one as present.
- * @param {Object} studentData - { name, rollNo, branch, password }
- * @returns {Promise<Object>}
- */
-export const spotRegister = async (studentData) => {
-    try {
-        const response = await axios.post(`${API_URL}/api/spot-register`, studentData);
-        return response.data;
-    } catch (error) {
-        console.error("API Error Details:", {
-            message: error.message,
-            response: error.response,
-            status: error.response?.status,
-            data: error.response?.data
-        });
-        throw new Error(error.response?.data?.error || 'Spot registration failed');
-    }
-};
 
 /**
  * Verifies the portal password.

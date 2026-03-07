@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import Scanner from './components/Scanner';
 import ManualEntry from './components/ManualEntry';
 import AttendanceList from './components/AttendanceList';
-import SpotRegistration from './components/SpotRegistration';
 import AdminLogin from './components/AdminLogin';
 
 function App() {
@@ -61,15 +60,6 @@ function App() {
           Manual Entry
         </button>
         <button
-          onClick={() => setActiveTab('spot')}
-          className={`cursor-pointer px-4 md:px-6 py-2 rounded-lg text-xs md:text-sm font-bold transition-all duration-200 whitespace-nowrap ${activeTab === 'spot'
-            ? 'bg-orange-500 text-white shadow-[0_0_15px_rgba(249,115,22,0.5)]'
-            : 'text-slate-400 hover:text-white'
-            }`}
-        >
-          Spot Registration
-        </button>
-        <button
           onClick={() => setActiveTab('list')}
           className={`cursor-pointer px-4 md:px-6 py-2.5 rounded-xl text-xs md:text-sm font-black uppercase tracking-widest transition-all duration-300 whitespace-nowrap ${activeTab === 'list'
             ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-[0_0_20px_rgba(59,130,246,0.5)] scale-105'
@@ -90,11 +80,6 @@ function App() {
         {activeTab === 'manual' && (
           <div className="animate-fade-in">
             <ManualEntry />
-          </div>
-        )}
-        {activeTab === 'spot' && (
-          <div className="animate-fade-in">
-            <SpotRegistration />
           </div>
         )}
         {activeTab === 'list' && (
