@@ -176,13 +176,16 @@ const AdminLogin = ({ onBack }) => {
 
   if (isAuthenticated) {
     return (
-      <div className="min-h-screen bg-[#0f172a] text-slate-200 flex flex-col items-center justify-center p-4">
+      <div className="min-h-screen bg-[#0f172a] text-slate-200 flex flex-col items-center justify-center p-4 relative">
         {/* Back button */}
         <button
-          onClick={onBack}
-          className="absolute top-4 left-4 sm:top-6 sm:left-6 text-slate-400 hover:text-white flex items-center gap-2 transition-colors cursor-pointer bg-white/5 px-4 py-2 rounded-lg border border-white/10 hover:bg-white/10"
+          onClick={() => {
+            console.log("Navigating back to home...");
+            onBack();
+          }}
+          className="fixed top-4 left-4 sm:top-6 sm:left-6 text-slate-400 hover:text-white flex items-center gap-2 transition-colors cursor-pointer bg-white/5 px-4 py-2 rounded-lg border border-white/10 hover:bg-white/10 z-[100] shadow-xl backdrop-blur-md"
         >
-          <span>←</span> Home
+          <span className="text-xl">←</span> Home
         </button>
 
         <button
@@ -324,13 +327,16 @@ const AdminLogin = ({ onBack }) => {
   }
 
   return (
-    <div className="min-h-screen bg-[#0f172a] text-slate-200 flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen bg-[#0f172a] text-slate-200 flex flex-col items-center justify-center p-4 relative">
       {/* Back button */}
       <button
-        onClick={onBack}
-        className="absolute top-4 left-4 sm:top-6 sm:left-6 text-slate-400 hover:text-white flex items-center gap-2 transition-colors cursor-pointer bg-white/5 px-4 py-2 rounded-lg border border-white/10 hover:bg-white/10"
+        onClick={() => {
+          console.log("Navigating back to home...");
+          onBack();
+        }}
+        className="fixed top-4 left-4 sm:top-6 sm:left-6 text-slate-400 hover:text-white flex items-center gap-2 transition-colors cursor-pointer bg-white/5 px-4 py-2 rounded-lg border border-white/10 hover:bg-white/10 z-[100] shadow-xl backdrop-blur-md"
       >
-        <span>←</span> Home
+        <span className="text-xl">←</span> Home
       </button>
 
       {/* Main Content */}
