@@ -132,3 +132,56 @@ body {
 .animate-soft-pulse {
   animation: soft-pulse 2s infinite ease-in-out;
 }
+
+@keyframes progress-bar {
+  0% {
+    width: 0%;
+    transform: translateX(-100%);
+  }
+
+  50% {
+    width: 70%;
+    transform: translateX(0%);
+  }
+
+  100% {
+    width: 100%;
+    transform: translateX(100%);
+  }
+}
+
+.animate-progress-bar {
+  animation: progress-bar 3s ease-in-out forwards;
+}
+
+@keyframes pulse-slow {
+
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 20px rgba(34, 211, 238, 0.2);
+  }
+
+  50% {
+    opacity: 0.8;
+    box-shadow: 0 0 40px rgba(34, 211, 238, 0.5);
+  }
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 3s infinite ease-in-out;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.5s ease-out forwards;
+}
