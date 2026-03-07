@@ -3,6 +3,8 @@ import { getAttendance } from '../services/api';
 
 const AttendanceList = () => {
     const [students, setStudents] = useState([]);
+    const [searchTerm, setSearchTerm] = useState('');
+    const deferredSearchTerm = React.useDeferredValue(searchTerm);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
@@ -21,6 +23,20 @@ const AttendanceList = () => {
         } finally {
             setLoading(false);
         }
+    };
+
+    const filteredStudents = React.useMemo(() =>
+        students.filter(student =>
+            student.name.toLowerCase().includes(deferredSearchTerm.toLowerCase()) ||
+            student.rollNo.toString().toLowerCase().includes(deferredSearchTerm.toLowerCase())
+        ),
+        [students, deferredSearchTerm]
+    );
+
+    const stats = {
+        total: students.length,
+        present: students.filter(s => s.isPresent).length,
+        absent: students.length - students.filter(s => s.isPresent).length
     };
 
     const handleExport = () => {
@@ -73,48 +89,77 @@ const AttendanceList = () => {
 
     return (
         <div className="w-full max-w-4xl mx-auto animate-fade-in-up">
-            <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-                    <span className="w-2 h-8 bg-gradient-to-b from-cyan-400 to-purple-600 rounded-full"></span>
-                    Current Attendance List
-                </h2>
-                <button
-                    onClick={handleExport}
-                    className="cursor-pointer flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg shadow-lg hover:shadow-green-500/30 transition-all active:scale-95"
-                >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                    Export CSV
-                </button>
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+                <div className="glass-card p-4 rounded-xl border border-white/5 bg-white/5">
+                    <div className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Total Students</div>
+                    <div className="text-3xl font-black text-white">{stats.total.toLocaleString()}</div>
+                </div>
+                <div className="glass-card p-4 rounded-xl border border-green-500/10 bg-green-500/5">
+                    <div className="text-green-400/70 text-xs font-bold uppercase tracking-wider mb-1">Present</div>
+                    <div className="text-3xl font-black text-green-400">{stats.present.toLocaleString()}</div>
+                </div>
+                <div className="glass-card p-4 rounded-xl border border-white/5 bg-white/2">
+                    <div className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Pending</div>
+                    <div className="text-3xl font-black text-slate-400">{stats.absent.toLocaleString()}</div>
+                </div>
             </div>
 
-            <div className="bg-slate-900/50 backdrop-blur-md rounded-xl border border-white/10 overflow-hidden shadow-2xl">
-                <div className="overflow-x-auto">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
+                <div className="relative w-full sm:max-w-xs">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg className="h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                    </div>
+                    <input
+                        type="text"
+                        placeholder="Search Name or Roll No..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="block w-full pl-10 pr-3 py-2.5 bg-slate-900/50 border border-white/10 rounded-xl text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all"
+                    />
+                </div>
+
+                <div className="flex items-center gap-3 w-full sm:w-auto">
+                    <button
+                        onClick={handleExport}
+                        className="cursor-pointer flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 bg-green-600/90 hover:bg-green-500 text-white font-bold rounded-xl shadow-lg hover:shadow-green-500/20 transition-all active:scale-95 text-sm"
+                    >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                        Export CSV
+                    </button>
+                    <button onClick={fetchData} className="p-2.5 bg-white/5 hover:bg-white/10 text-slate-400 rounded-xl transition-all border border-white/5 active:rotate-180 duration-500">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                    </button>
+                </div>
+            </div>
+
+            <div className="bg-slate-900/50 backdrop-blur-md rounded-2xl border border-white/10 overflow-hidden shadow-2xl">
+                <div className="overflow-x-auto max-h-[600px] overflow-y-auto custom-scrollbar">
                     <table className="w-full text-left border-collapse">
-                        <thead>
-                            <tr className="bg-white/5 text-slate-400 text-xs uppercase tracking-wider">
-                                <th className="p-4 font-semibold border-b border-white/10">Name</th>
-                                <th className="p-4 font-semibold border-b border-white/10">Roll Number</th>
-                                <th className="p-4 font-semibold border-b border-white/10">Branch</th>
-                                <th className="p-4 font-semibold border-b border-white/10">Semester</th>
-                                <th className="p-4 font-semibold border-b border-white/10">Status</th>
+                        <thead className="sticky top-0 z-10 bg-slate-900 border-b border-white/10">
+                            <tr className="text-slate-400 text-[10px] uppercase tracking-widest">
+                                <th className="p-4 font-black">Name</th>
+                                <th className="p-4 font-black">Roll Number</th>
+                                <th className="p-4 font-black">Branch</th>
+                                <th className="p-4 font-black text-center">Status</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-white/5 text-sm">
-                            {students.map((student, idx) => (
+                            {filteredStudents.map((student, idx) => (
                                 <tr
                                     key={idx}
-                                    className={`hover:bg-white/5 transition-colors animate-fade-in-up stagger-${(idx % 4) + 1}`}
+                                    className="hover:bg-white/5 transition-colors group"
                                 >
-                                    <td className="p-4 text-white font-medium">{student.name}</td>
-                                    <td className="p-4 text-slate-300 font-mono">{student.rollNo}</td>
-                                    <td className="p-4 text-slate-400 uppercase text-xs font-bold">{student.branch}</td>
-                                    <td className="p-4 text-slate-400 text-xs">{student.semester}</td>
-                                    <td className="p-4">
-                                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter transition-all ${student.isPresent
-                                            ? 'bg-green-500/10 text-green-400 border border-green-500/20 shadow-[0_0_10px_rgba(34,197,94,0.2)]'
-                                            : 'bg-slate-800/50 text-slate-500 border border-white/5'
+                                    <td className="p-4 text-white font-medium group-hover:text-cyan-400 transition-colors">{student.name}</td>
+                                    <td className="p-4 text-slate-400 font-mono text-xs">{student.rollNo}</td>
+                                    <td className="p-4 text-slate-500 uppercase text-[10px] font-black tracking-wider">{student.branch}</td>
+                                    <td className="p-4 text-center">
+                                        <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-tighter transition-all ${student.isPresent
+                                            ? 'bg-green-500/10 text-green-400 border border-green-500/20 shadow-[0_0_10px_rgba(34,197,94,0.1)]'
+                                            : 'bg-slate-800/50 text-slate-600 border border-white/5'
                                             }`}>
-                                            <div className={`w-1 h-1 rounded-full mr-1.5 ${student.isPresent ? 'bg-green-400 animate-pulse' : 'bg-slate-600'}`}></div>
                                             {student.isPresent ? 'Present' : 'Absent'}
                                         </span>
                                     </td>
@@ -123,15 +168,30 @@ const AttendanceList = () => {
                         </tbody>
                     </table>
                 </div>
-                {students.length === 0 && (
-                    <div className="text-center py-12 text-slate-500">
-                        No students found.
+                {filteredStudents.length === 0 && (
+                    <div className="text-center py-20">
+                        <div className="text-slate-600 mb-2">
+                            <svg className="w-12 h-12 mx-auto opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                        </div>
+                        <p className="text-slate-500 font-medium">No results matching "{searchTerm}"</p>
                     </div>
                 )}
             </div>
 
-            <div className="mt-4 text-center text-xs text-slate-600">
-                Total Records: {students.length}
+            <div className="mt-6 flex items-center justify-between px-2">
+                <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">
+                    Showing {filteredStudents.length} of {students.length} records
+                </div>
+                {searchTerm && (
+                    <button
+                        onClick={() => setSearchTerm('')}
+                        className="text-[10px] text-cyan-500 font-bold uppercase tracking-widest hover:text-cyan-400 underline underline-offset-4"
+                    >
+                        Clear Filter
+                    </button>
+                )}
             </div>
         </div>
     );

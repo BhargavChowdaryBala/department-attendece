@@ -8,10 +8,25 @@ const Scanner = ({ onScanSuccess, onScan, autoStart = false, id = "reader-custom
     const [isScanning, setIsScanning] = useState(false);
     const [cameras, setCameras] = useState([]);
     const [activeCameraId, setActiveCameraId] = useState(null);
+    const [isProcessing, setIsProcessing] = useState(false);
+    const [currentMsg, setCurrentMsg] = useState("Syncing with Cloud...");
+    const [queueDepth, setQueueDepth] = useState(0);
+    const [retryCount, setRetryCount] = useState(0);
+
+    const PROFESSIONAL_MSGS = [
+        "Syncing student record...",
+        "Validating entry portal...",
+        "Updating attendance cloud...",
+        "Processing secure scan...",
+        "Registering attendance...",
+        "Connecting to cloud server...",
+        "Finalizing registration..."
+    ];
 
     const lastScannedCode = useRef(null);
     const lastScannedTime = useRef(0);
     const COOLDOWN_MS = 3000;
+    const successAudio = useRef(new Audio('/sounds/scan_success.mp3'));
 
     const readerId = id;
 
@@ -105,6 +120,8 @@ const Scanner = ({ onScanSuccess, onScan, autoStart = false, id = "reader-custom
         const rollNo = rawText.trim();
         const now = Date.now();
 
+        if (isProcessing) return;
+
         if (rollNo === lastScannedCode.current && (now - lastScannedTime.current < COOLDOWN_MS)) {
             return;
         }
@@ -119,18 +136,55 @@ const Scanner = ({ onScanSuccess, onScan, autoStart = false, id = "reader-custom
             return;
         }
 
+        await processMarkAttendance(rollNo);
+    };
+
+    const processMarkAttendance = async (rollNo, attempt = 0) => {
+        setIsProcessing(true);
+        setScanError(null);
+        setScanResult(null);
+
+        // Pick a dynamic professional message
+        const randomMsg = PROFESSIONAL_MSGS[Math.floor(Math.random() * PROFESSIONAL_MSGS.length)];
+        setCurrentMsg(randomMsg);
+
         try {
             const data = await markAttendance(rollNo);
+
+            // Play iPhone 15 Success Sound
+            if (successAudio.current) {
+                successAudio.current.currentTime = 0;
+                successAudio.current.play().catch(e => console.warn("Audio play failed", e));
+            }
+
             if (navigator.vibrate) try { navigator.vibrate([100, 50, 100]); } catch (e) { }
             setScanResult({
                 message: data.message,
                 student: data.student,
                 timestamp: new Date().toLocaleTimeString()
             });
+            setQueueDepth(data.queueDepth || 0);
             setScanError(null);
+            setIsProcessing(false);
             onScanSuccess && onScanSuccess(data);
         } catch (err) {
-            setScanError(err.message);
+            setQueueDepth(err.response?.data?.queueDepth || 0);
+            // Professional Auto-Retry logic
+            if (attempt < 1) {
+                console.log(`Scan failed, retrying... Attempt ${attempt + 1}`);
+                setScanError("Syncing with cloud...");
+                setTimeout(() => processMarkAttendance(rollNo, attempt + 1), 1000);
+                return;
+            }
+
+            setIsProcessing(false);
+            // Professional Error Messaging
+            let friendlyError = err.message;
+            if (err.message.toLowerCase().includes('server') || err.message.toLowerCase().includes('failed to fetch')) {
+                friendlyError = "The system is currently handling multiple scans. Please wait 2 seconds and try again.";
+            }
+
+            setScanError(friendlyError);
             setScanResult(null);
             if (navigator.vibrate) try { navigator.vibrate(400); } catch (e) { }
         }
@@ -217,6 +271,19 @@ const Scanner = ({ onScanSuccess, onScan, autoStart = false, id = "reader-custom
             </div>
 
             <div className="w-full">
+                {isProcessing && !scanResult && (
+                    <div className="w-full animate-pulse mb-4">
+                        <div className="glass-card rounded-2xl p-6 shadow-xl flex flex-col items-center text-center border border-cyan-500/30">
+                            <div className="w-10 h-10 border-3 border-cyan-500/30 border-t-cyan-500 rounded-full animate-spin mb-3"></div>
+                            <h3 className="text-cyan-400 font-bold">{currentMsg}</h3>
+                            {queueDepth > 1 && (
+                                <p className="text-amber-400 text-[10px] font-bold uppercase mt-1">Queue Position: {queueDepth}</p>
+                            )}
+                            <p className="text-slate-500 text-xs mt-1 italic">Please hold for a moment</p>
+                        </div>
+                    </div>
+                )}
+
                 {scanResult && (
                     <div className="w-full animate-fade-in-up mb-4">
                         <div className="glass-card rounded-2xl p-5 shadow-2xl flex flex-col items-center text-center relative overflow-hidden">
@@ -240,13 +307,13 @@ const Scanner = ({ onScanSuccess, onScan, autoStart = false, id = "reader-custom
 
             {scanError && (
                 <div className="w-full animate-fade-in-up mb-4">
-                    <div className="glass-card rounded-2xl p-5 shadow-lg flex flex-col items-center text-center bg-red-950/20">
-                        <div className="w-12 h-12 bg-red-900/30 rounded-full flex items-center justify-center mb-3 shadow-[0_0_15px_rgba(239,68,68,0.2)]">
-                            <svg className="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                    <div className="glass-card rounded-2xl p-5 shadow-lg flex flex-col items-center text-center bg-slate-900/50 border border-white/10">
+                        <div className="w-12 h-12 bg-amber-500/10 rounded-full flex items-center justify-center mb-3 border border-amber-500/20">
+                            <svg className="w-6 h-6 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                         </div>
-                        <h3 className="text-lg font-bold text-red-400 leading-tight mb-2">Registration Error</h3>
-                        <p className="text-red-200 font-medium text-sm bg-red-950/60 px-3 py-2 rounded-lg break-all border border-red-500/10">{scanError}</p>
-                        <div className="mt-2 text-xs text-red-500/70">Scan another to retry</div>
+                        <h3 className="text-lg font-bold text-slate-200 leading-tight mb-2">Coordinator Note</h3>
+                        <p className="text-slate-400 font-medium text-sm px-3 py-2 rounded-lg break-normal">{scanError}</p>
+                        <div className="mt-2 text-xs text-slate-500 animate-pulse">Try scanning again</div>
                     </div>
                 </div>
             )}

@@ -17,6 +17,11 @@ const ManualEntry = () => {
 
         try {
             const data = await markAttendance(rollNo);
+
+            // Play success sound
+            const audio = new Audio('/sounds/scan_success.mp3');
+            audio.play().catch(e => console.warn("Audio play failed", e));
+
             setResult({
                 message: data.message,
                 student: data.student
@@ -83,10 +88,15 @@ const ManualEntry = () => {
 
                     {error && (
                         <>
-                            <div className="mx-auto w-12 h-12 bg-red-900/20 rounded-full flex items-center justify-center mb-3 border border-red-500/10">
-                                <svg className="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            <div className="mx-auto w-12 h-12 bg-slate-800 rounded-full flex items-center justify-center mb-3 border border-amber-500/20">
+                                <svg className="w-6 h-6 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                             </div>
-                            <p className="text-red-400 font-bold">{error}</p>
+                            <p className="text-slate-200 font-bold mb-1">Coordinator Note</p>
+                            <p className="text-slate-400 text-sm">
+                                {error.toLowerCase().includes('server') || error.toLowerCase().includes('failed to fetch')
+                                    ? "The system is currently syncing multiple records. Please wait a moment and try again."
+                                    : error}
+                            </p>
                         </>
                     )}
                 </div>

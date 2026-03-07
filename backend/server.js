@@ -109,7 +109,8 @@ let isOperating = false;
 const queue = [];
 let cachedRows = null;
 let lastCacheUpdate = 0;
-const CACHE_TTL = 10000; // 10 seconds
+const CACHE_TTL = 10000; // 10 seconds for general data
+const SCAN_CACHE_TTL = 2000; // 2 seconds specifically for consecutive scans
 
 /**
  * Ensures only one Google Sheets operation (write/heavy read) happens at a time.
@@ -138,18 +139,19 @@ async function processQueue() {
     // Error handled in the promise wrapper
   } finally {
     isOperating = false;
-    // Small delay to prevent immediate re-hit of API rate limits
-    setTimeout(processQueue, 100);
+    // Faster turnover for higher throughput (30ms)
+    setTimeout(processQueue, 30);
   }
 }
 
 /**
  * Gets rows, using cache if fresh enough.
  * @param {boolean} forceRefresh - If true, ignores cache.
+ * @param {number} customTtl - Optional override for TTL.
  */
-async function getCachedRows(forceRefresh = false) {
+async function getCachedRows(forceRefresh = false, customTtl = CACHE_TTL) {
   const now = Date.now();
-  if (!forceRefresh && cachedRows && (now - lastCacheUpdate < CACHE_TTL)) {
+  if (!forceRefresh && cachedRows && (now - lastCacheUpdate < customTtl)) {
     return cachedRows;
   }
 
@@ -170,10 +172,15 @@ app.post('/api/mark-attendance', async (req, res) => {
 
   // Use Mutex to prevent concurrent write conflicts
   return withLock(async () => {
-    console.log(`\n[API] Processing Scan for: "${rollNo}"`);
+    // Report how many people are waiting (for UI feedback)
+    const currentQueueDepth = queue.length;
+
+    console.log(`\n[API] Processing Scan for: "${rollNo}" (Queue: ${currentQueueDepth})`);
     try {
-      // Always get fresh rows when marking to ensure no double-marking
-      const rows = await getCachedRows(true);
+      // If a write JUST happened (lastCacheUpdate === 0), force a fresh fetch 
+      // even if we are within the SCAN_CACHE_TTL window, to ensure the next
+      // person in line doesn't see "Absent" for someone who just scanned.
+      const rows = await getCachedRows(lastCacheUpdate === 0, SCAN_CACHE_TTL);
 
       const studentRow = rows.find(row => {
         const sheetRoll = row.get('Rollnumber');
@@ -181,16 +188,26 @@ app.post('/api/mark-attendance', async (req, res) => {
       });
 
       if (!studentRow) {
-        return res.status(404).json({ error: `Student not registered (Roll: ${rollNo})` });
+        return res.status(404).json({
+          error: `Student not registered (Roll: ${rollNo})`,
+          queueDepth: currentQueueDepth
+        });
       }
 
       const currentStatus = studentRow.get('isPresent');
-      const isAlreadyPresent = (currentStatus === 'TRUE' || currentStatus === 'Present' || currentStatus === true || String(currentStatus).toLowerCase() === 'true');
+      const isAlreadyPresent = (
+        currentStatus === 'TRUE' ||
+        currentStatus === 'Present' ||
+        currentStatus === true ||
+        String(currentStatus).toLowerCase() === 'true' ||
+        String(currentStatus).toLowerCase() === 'yes'
+      );
 
       if (isAlreadyPresent) {
         console.log(`[API] Student ${rollNo} already marked.`);
         return res.status(200).json({
           message: 'Already marked present',
+          queueDepth: currentQueueDepth,
           student: {
             name: studentRow.get('Name'),
             rollNo: studentRow.get('Rollnumber'),
@@ -203,11 +220,12 @@ app.post('/api/mark-attendance', async (req, res) => {
       studentRow.set('isPresent', 'TRUE');
       await studentRow.save();
 
-      // Invalidate cache since we modified data
+      // IMPORTANT: Invalidate cache for the next person in the queue
       lastCacheUpdate = 0;
 
       return res.status(200).json({
         message: 'Marked Present',
+        queueDepth: currentQueueDepth,
         student: {
           name: studentRow.get('Name'),
           rollNo: studentRow.get('Rollnumber'),
@@ -218,7 +236,10 @@ app.post('/api/mark-attendance', async (req, res) => {
 
     } catch (error) {
       console.error('[API ERROR]', error.message);
-      return res.status(500).json({ error: error.message });
+      return res.status(500).json({
+        error: error.message,
+        queueDepth: queue.length
+      });
     }
   });
 });
