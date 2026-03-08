@@ -139,10 +139,35 @@ const Scanner = ({ onScanSuccess, onScan, autoStart = false, id = "reader-custom
         await processMarkAttendance(rollNo);
     };
 
+    const idleTimeoutRef = useRef(null);
+
+    const resetIdleTimeout = useCallback(() => {
+        if (idleTimeoutRef.current) clearTimeout(idleTimeoutRef.current);
+        idleTimeoutRef.current = setTimeout(() => {
+            console.log("Scanner idle for 5 mins, stopping camera to save battery/thermal.");
+            stopScanning();
+            setScanError("Scanner paused due to inactivity. Tap 'Start Camera' to resume.");
+        }, 300000); // 5 minutes
+    }, []);
+
+    useEffect(() => {
+        if (isScanning) {
+            resetIdleTimeout();
+            window.addEventListener('touchstart', resetIdleTimeout);
+            window.addEventListener('mousemove', resetIdleTimeout);
+        }
+        return () => {
+            window.removeEventListener('touchstart', resetIdleTimeout);
+            window.removeEventListener('mousemove', resetIdleTimeout);
+            if (idleTimeoutRef.current) clearTimeout(idleTimeoutRef.current);
+        };
+    }, [isScanning, resetIdleTimeout]);
+
     const processMarkAttendance = async (rollNo, attempt = 0) => {
         setIsProcessing(true);
         setScanError(null);
         setScanResult(null);
+        resetIdleTimeout(); // Activity detected
 
         // Pick a dynamic professional message
         const randomMsg = PROFESSIONAL_MSGS[Math.floor(Math.random() * PROFESSIONAL_MSGS.length)];
@@ -169,18 +194,23 @@ const Scanner = ({ onScanSuccess, onScan, autoStart = false, id = "reader-custom
             onScanSuccess && onScanSuccess(data);
         } catch (err) {
             setQueueDepth(err.response?.data?.queueDepth || 0);
+
+            // Check for Rate Limit or Timeout specifically from our new backend logic
+            const isTimeout = err.message.toLowerCase().includes('timeout');
+            const isRateLimit = err.message.toLowerCase().includes('syncing') || err.message.toLowerCase().includes('handle multiple scans');
+
             // Professional Auto-Retry logic
             if (attempt < 1) {
                 console.log(`Scan failed, retrying... Attempt ${attempt + 1}`);
-                setScanError("Syncing with cloud...");
-                setTimeout(() => processMarkAttendance(rollNo, attempt + 1), 1000);
+                setScanError(isTimeout ? "Cloud connection slow, retrying..." : "Syncing with cloud...");
+                setTimeout(() => processMarkAttendance(rollNo, attempt + 1), 1500);
                 return;
             }
 
             setIsProcessing(false);
             // Professional Error Messaging
             let friendlyError = err.message;
-            if (err.message.toLowerCase().includes('server') || err.message.toLowerCase().includes('failed to fetch')) {
+            if (err.message.toLowerCase().includes('server') || err.message.toLowerCase().includes('failed to fetch') || isTimeout) {
                 friendlyError = "The system is currently handling multiple scans. Please wait 2 seconds and try again.";
             }
 

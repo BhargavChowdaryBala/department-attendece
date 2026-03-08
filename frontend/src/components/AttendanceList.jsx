@@ -9,19 +9,31 @@ const AttendanceList = () => {
     const [error, setError] = useState(null);
 
     useEffect(() => {
-        fetchData();
+        // Initial fetch
+        fetchData(true);
+
+        // Setup background polling (every 20 seconds)
+        const pollInterval = setInterval(() => {
+            fetchData(false); // Silent fetch without full loading UI
+        }, 20000);
+
+        return () => clearInterval(pollInterval);
     }, []);
 
-    const fetchData = async () => {
+    const fetchData = async (showLoading = true) => {
         try {
-            setLoading(true);
+            if (showLoading) setLoading(true);
             const data = await getAttendance();
             setStudents(data.students);
             setError(null);
         } catch (err) {
-            setError(err.message);
+            // Only set error if it's the initial load or a critical failure
+            if (showLoading || !students.length) {
+                setError(err.message);
+            }
+            console.warn("Polling Sync Issue:", err.message);
         } finally {
-            setLoading(false);
+            if (showLoading) setLoading(false);
         }
     };
 

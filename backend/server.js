@@ -114,14 +114,25 @@ const SCAN_CACHE_TTL = 2000; // 2 seconds specifically for consecutive scans
 
 /**
  * Ensures only one Google Sheets operation (write/heavy read) happens at a time.
+ * Includes a timeout to prevent deadlocks.
  */
-async function withLock(fn) {
+async function withLock(fn, timeoutMs = 15000) {
   return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      const index = queue.findIndex(item => item.resolve === resolve);
+      if (index !== -1) {
+        queue.splice(index, 1);
+        reject(new Error('Operation timed out (Lock Timeout)'));
+      }
+    }, timeoutMs);
+
     queue.push(async () => {
       try {
         const res = await fn();
+        clearTimeout(timeout);
         resolve(res);
       } catch (e) {
+        clearTimeout(timeout);
         reject(e);
       }
     });
@@ -134,9 +145,32 @@ async function processQueue() {
   isOperating = true;
   const task = queue.shift();
   try {
-    await task();
+    // Add built-in retry for common Google API transient errors
+    let attempts = 0;
+    const maxAttempts = 3;
+
+    const executeWithRetry = async () => {
+      try {
+        await task();
+      } catch (e) {
+        const isRateLimit = e.message.includes('429') || e.code === 429;
+        const isTransient = isRateLimit || e.message.includes('ETIMEDOUT') || e.code === 'ECONNRESET';
+
+        if (isTransient && attempts < maxAttempts) {
+          attempts++;
+          const delay = Math.pow(2, attempts) * 500;
+          console.log(`[RETRY] Transient error detected. Retrying in ${delay}ms... (Attempt ${attempts}/${maxAttempts})`);
+          await new Promise(r => setTimeout(r, delay));
+          return executeWithRetry();
+        }
+        throw e;
+      }
+    };
+
+    await executeWithRetry();
   } catch (e) {
-    // Error handled in the promise wrapper
+    console.error('[QUEUE ERROR]', e.message);
+    // Error handled in the promise wrapper via reject
   } finally {
     isOperating = false;
     // Faster turnover for higher throughput (30ms)
