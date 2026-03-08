@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { verifyCoordinatorPassword } from '../services/api';
 
-const CoordinatorLogin = ({ onLogin }) => {
+const CoordinatorLogin = ({ onLogin, onBack }) => {
     const [password, setPassword] = useState('');
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -23,6 +23,14 @@ const CoordinatorLogin = ({ onLogin }) => {
 
     return (
         <div className="min-h-screen bg-[#0f172a] text-slate-200 flex flex-col items-center justify-center p-4 relative w-full">
+            {/* Back button */}
+            <button
+                onClick={onBack}
+                className="fixed top-4 left-4 sm:top-6 sm:left-6 text-slate-400 hover:text-white flex items-center gap-2 transition-colors cursor-pointer bg-white/5 px-4 py-2 rounded-lg border border-white/10 hover:bg-white/10 z-[100] shadow-xl backdrop-blur-md"
+            >
+                <span className="text-xl">←</span> Change Role
+            </button>
+
             {/* Main Content */}
             <div className="flex flex-col items-center w-full max-w-md animate-fade-in-up">
                 <div className="w-32 h-32 sm:w-40 sm:h-40 mb-8 rounded-full overflow-hidden bg-slate-900/80 border-[4px] border-primary/50 p-1.5 shadow-[0_0_40px_rgba(139,92,246,0.4)] flex items-center justify-center transition-all hover:border-primary hover:shadow-[0_0_50px_rgba(139,92,246,0.6)] group backdrop-blur-3xl scale-100 glow-border">

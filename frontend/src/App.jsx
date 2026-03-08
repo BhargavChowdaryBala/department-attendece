@@ -5,36 +5,45 @@ import AttendanceList from './components/AttendanceList';
 import AdminLogin from './components/AdminLogin';
 import SplashScreen from './components/SplashScreen';
 import CoordinatorLogin from './components/CoordinatorLogin';
+import RoleSelection from './components/RoleSelection';
+
 
 function App() {
   const [activeTab, setActiveTab] = useState('scan');
   const [showSplash, setShowSplash] = useState(true);
+
+  // 'none', 'coordinator', 'hod'
+  const [selectedRole, setSelectedRole] = useState('none');
   const [isCoordinatorLoggedIn, setIsCoordinatorLoggedIn] = useState(false);
 
   if (showSplash) {
     return <SplashScreen onComplete={() => setShowSplash(false)} />;
   }
 
-  if (!isCoordinatorLoggedIn) {
-    return <CoordinatorLogin onLogin={() => setIsCoordinatorLoggedIn(true)} />;
+  // 1. Role Selection Gateway
+  if (selectedRole === 'none') {
+    return <RoleSelection onSelectRole={(role) => setSelectedRole(role)} />;
   }
 
-  if (activeTab === 'admin') {
-    return <AdminLogin onBack={() => setActiveTab('scan')} />;
+  // 2. Coordinator Flow
+  if (selectedRole === 'coordinator') {
+    if (!isCoordinatorLoggedIn) {
+      return (
+        <CoordinatorLogin
+          onLogin={() => setIsCoordinatorLoggedIn(true)}
+          onBack={() => setSelectedRole('none')}
+        />
+      );
+    }
+    // Main App below...
+  } else if (selectedRole === 'hod') {
+    // 3. HOD Flow
+    return <AdminLogin onBack={() => setSelectedRole('none')} />;
   }
 
   return (
     <div className="min-h-screen bg-[--color-background] text-[--color-secondary] flex flex-col items-center py-8 px-4 transition-colors duration-300 relative selection:bg-cyan-500/30">
-      {/* HOD Login Button */}
-      <button
-        onClick={() => setActiveTab('admin')}
-        className="absolute top-4 right-4 sm:top-6 sm:right-6 bg-white/5 border border-white/10 hover:bg-white/10 text-slate-300 text-xs sm:text-sm font-semibold py-2 px-3 sm:px-4 rounded-lg backdrop-blur-sm transition-all shadow-lg hover:shadow-[0_0_15px_rgba(139,92,246,0.3)] z-50 cursor-pointer flex items-center gap-2"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 text-primary">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
-        </svg>
-        HOD Login
-      </button>
+
 
       {/* Header */}
       <header className="mb-8 text-center flex flex-col items-center">
