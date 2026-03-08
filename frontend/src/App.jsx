@@ -4,13 +4,19 @@ import ManualEntry from './components/ManualEntry';
 import AttendanceList from './components/AttendanceList';
 import AdminLogin from './components/AdminLogin';
 import SplashScreen from './components/SplashScreen';
+import CoordinatorLogin from './components/CoordinatorLogin';
 
 function App() {
   const [activeTab, setActiveTab] = useState('scan');
   const [showSplash, setShowSplash] = useState(true);
+  const [isCoordinatorLoggedIn, setIsCoordinatorLoggedIn] = useState(false);
 
   if (showSplash) {
     return <SplashScreen onComplete={() => setShowSplash(false)} />;
+  }
+
+  if (!isCoordinatorLoggedIn) {
+    return <CoordinatorLogin onLogin={() => setIsCoordinatorLoggedIn(true)} />;
   }
 
   if (activeTab === 'admin') {
