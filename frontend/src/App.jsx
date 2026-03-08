@@ -6,6 +6,7 @@ import AdminLogin from './components/AdminLogin';
 import SplashScreen from './components/SplashScreen';
 import CoordinatorLogin from './components/CoordinatorLogin';
 import RoleSelection from './components/RoleSelection';
+import ServerWakeup from './components/ServerWakeup';
 
 
 function App() {
@@ -15,9 +16,15 @@ function App() {
   // 'none', 'coordinator', 'hod'
   const [selectedRole, setSelectedRole] = useState('none');
   const [isCoordinatorLoggedIn, setIsCoordinatorLoggedIn] = useState(false);
+  const [serverReady, setServerReady] = useState(false);
 
   if (showSplash) {
     return <SplashScreen onComplete={() => setShowSplash(false)} />;
+  }
+
+  // 0. Server Wakeup / Ping Check
+  if (!serverReady) {
+    return <ServerWakeup onReady={() => setServerReady(true)} />;
   }
 
   // 1. Role Selection Gateway

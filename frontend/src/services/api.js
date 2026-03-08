@@ -93,3 +93,17 @@ export const clearAttendance = async (password) => {
         throw new Error(error.response?.data?.error || 'Failed to clear attendance');
     }
 };
+
+/**
+ * Pings the server to check if it represents a backend wakeup.
+ * @returns {Promise<boolean>}
+ */
+export const pingServer = async () => {
+    try {
+        await axios.get(`${API_URL}/`);
+        return true;
+    } catch (error) {
+        return false;
+    }
+};
+

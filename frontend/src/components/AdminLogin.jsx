@@ -215,12 +215,13 @@ const AdminLogin = ({ onBack }) => {
         {/* Reset Attendance Button (Moved to top right under logout) */}
         <button
           onClick={() => setShowResetModal(true)}
-          className="absolute top-16 right-4 sm:top-20 sm:right-6 text-red-500 hover:text-white flex items-center gap-2 transition-colors cursor-pointer bg-red-500/10 hover:bg-red-500/30 px-3 py-2 rounded-lg border border-red-500/20 shadow-lg backdrop-blur-md text-sm font-medium"
+          className="absolute top-16 right-4 sm:top-20 sm:right-6 text-red-500 hover:text-white flex items-center gap-1.5 sm:gap-2 transition-colors cursor-pointer bg-red-500/10 hover:bg-red-500/30 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg border border-red-500/20 shadow-lg backdrop-blur-md text-xs sm:text-sm font-medium z-50 whitespace-nowrap"
         >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
-          Clear All Presentees
+          <span className="hidden sm:inline">Clear All Presentees</span>
+          <span className="inline sm:hidden">Clear All</span>
         </button>
 
         <div className="flex flex-col items-center w-full max-w-4xl animate-fade-in-up">
