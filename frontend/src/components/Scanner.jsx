@@ -56,6 +56,7 @@ const Scanner = ({ onScanSuccess, onScan, autoStart = false, id = "reader-custom
     // Background sync effect
     useEffect(() => {
         let syncInterval;
+        let syncTimeoutId;
         
         const syncOfflineData = async () => {
             if (!navigator.onLine) return;
@@ -72,18 +73,20 @@ const Scanner = ({ onScanSuccess, onScan, autoStart = false, id = "reader-custom
                 await markAttendance(item.rollNo);
                 removeFromQueue(item.rollNo);
                 
-                const newCount = Math.max(0, queue.length - 1);
-                setOfflineCount(newCount);
+                const updatedQueue = getOfflineQueue();
+                setOfflineCount(updatedQueue.length);
                 
                 // Show a quick success toast
                 setSyncNotification(`Synced ${item.rollNo} to Cloud`);
-                setTimeout(() => setSyncNotification(null), 3000);
+                if (syncTimeoutId) clearTimeout(syncTimeoutId);
+                syncTimeoutId = setTimeout(() => setSyncNotification(null), 3000);
             } catch (err) {
                 // If it's not a network error anymore (e.g. 400 bad request, meaning already registered or invalid), 
                 // we should remove it to prevent blocking the queue forever.
                 if (err.message !== "Connection Error" && !err.message.toLowerCase().includes("network")) {
                     removeFromQueue(item.rollNo);
-                    setOfflineCount(prev => Math.max(0, prev - 1));
+                    const updatedQueue = getOfflineQueue();
+                    setOfflineCount(updatedQueue.length);
                 }
             }
         };
@@ -96,6 +99,7 @@ const Scanner = ({ onScanSuccess, onScan, autoStart = false, id = "reader-custom
 
         return () => {
             clearInterval(syncInterval);
+            if (syncTimeoutId) clearTimeout(syncTimeoutId);
             window.removeEventListener('online', syncOfflineData);
         };
     }, []);
@@ -255,6 +259,7 @@ const Scanner = ({ onScanSuccess, onScan, autoStart = false, id = "reader-custom
 
             setScanError(friendlyError);
             setScanResult(null);
+            setIsProcessing(false);
             if (navigator.vibrate) try { navigator.vibrate(400); } catch (e) { }
         }
     };

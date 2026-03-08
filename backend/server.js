@@ -106,43 +106,54 @@ async function ensureDocLoaded() {
 
 // --- CONCURRENCY CONTROL ---
 let isOperating = false;
-const queue = [];
 let cachedRows = null;
 let lastCacheUpdate = 0;
-const CACHE_TTL = 10000; // 10 seconds for general data
-const SCAN_CACHE_TTL = 2000; // 2 seconds specifically for consecutive scans
+const CACHE_TTL = 30000; // 30 seconds for general data
+
+// Instead of blocking individual requests, we track who was marked locally 
+// and sync them to Google Sheets in batches.
+const dirtyRows = new Set();
+let isSyncing = false;
 
 /**
- * Ensures only one Google Sheets operation (write/heavy read) happens at a time.
+ * Background worker that flushes dirty rows to Google Sheets every 10 seconds.
+ * This completely avoids Google Sheets API Rate Limits.
  */
-async function withLock(fn) {
-  return new Promise((resolve, reject) => {
-    queue.push(async () => {
-      try {
-        const res = await fn();
-        resolve(res);
-      } catch (e) {
-        reject(e);
-      }
-    });
-    processQueue();
-  });
-}
-
-async function processQueue() {
-  if (isOperating || queue.length === 0) return;
-  isOperating = true;
-  const task = queue.shift();
+setInterval(async () => {
+  if (dirtyRows.size === 0 || isSyncing) return;
+  
+  isSyncing = true;
+  console.log(`[SYNC] Starting background sync for ${dirtyRows.size} pending scans...`);
+  
   try {
-    await task();
-  } catch (e) {
-    // Error handled in the promise wrapper
+    const rowsToSync = Array.from(dirtyRows);
+    dirtyRows.clear(); // Clear so new incoming scans go into the next batch
+    
+    let syncedCount = 0;
+    for (const rollNo of rowsToSync) {
+      if (!cachedRows) continue;
+      
+      const studentRow = cachedRows.find(r => {
+        const sheetRoll = r.get('Rollnumber');
+        return sheetRoll && sheetRoll.toString().trim().toLowerCase() === rollNo;
+      });
+      
+      if (studentRow) {
+        studentRow.set('isPresent', 'TRUE');
+        await studentRow.save(); // Individual save limits to 60/min, but we are batching over long time
+        syncedCount++;
+        // Google sheets enforces 60 requests per minute per user.
+        // Sleep 1 second between row saves to ensure we stay well below 60/min.
+        await new Promise(r => setTimeout(r, 1000));
+      }
+    }
+    console.log(`[SYNC] Successfully synced ${syncedCount} scans to Google Sheets.`);
+  } catch (err) {
+    console.error(`[SYNC ERROR] Failed background sync:`, err.message);
   } finally {
-    isOperating = false;
-    // Faster turnover for higher throughput (30ms)
-    setTimeout(processQueue, 30);
+    isSyncing = false;
   }
-}
+}, 10000);
 
 /**
  * Gets rows, using cache if fresh enough.
@@ -152,6 +163,11 @@ async function processQueue() {
 async function getCachedRows(forceRefresh = false, customTtl = CACHE_TTL) {
   const now = Date.now();
   if (!forceRefresh && cachedRows && (now - lastCacheUpdate < customTtl)) {
+    return cachedRows;
+  }
+
+  // If sync is running, prefer cache to avoid blocking
+  if (isSyncing && cachedRows) {
     return cachedRows;
   }
 
@@ -170,78 +186,74 @@ app.post('/api/mark-attendance', async (req, res) => {
     return res.status(400).json({ error: 'Roll Number is required' });
   }
 
-  // Use Mutex to prevent concurrent write conflicts
-  return withLock(async () => {
-    // Report how many people are waiting (for UI feedback)
-    const currentQueueDepth = queue.length;
+  const normalizedRollNo = rollNo.toString().trim().toLowerCase();
+  console.log(`\n[API] Processing Scan for: "${normalizedRollNo}"`);
 
-    console.log(`\n[API] Processing Scan for: "${rollNo}" (Queue: ${currentQueueDepth})`);
-    try {
-      // If a write JUST happened (lastCacheUpdate === 0), force a fresh fetch 
-      // even if we are within the SCAN_CACHE_TTL window, to ensure the next
-      // person in line doesn't see "Absent" for someone who just scanned.
-      const rows = await getCachedRows(lastCacheUpdate === 0, SCAN_CACHE_TTL);
+  try {
+    // Rely on memory-first logic. This resolves instantly.
+    const rows = await getCachedRows(false, CACHE_TTL);
 
-      const studentRow = rows.find(row => {
-        const sheetRoll = row.get('Rollnumber');
-        return sheetRoll && sheetRoll.toString().trim().toLowerCase() === rollNo.toString().trim().toLowerCase();
+    const studentRow = rows.find(row => {
+      const sheetRoll = row.get('Rollnumber');
+      return sheetRoll && sheetRoll.toString().trim().toLowerCase() === normalizedRollNo;
+    });
+
+    if (!studentRow) {
+      return res.status(404).json({
+        error: `Student not registered (Roll: ${rollNo})`,
+        queueDepth: dirtyRows.size
       });
+    }
 
-      if (!studentRow) {
-        return res.status(404).json({
-          error: `Student not registered (Roll: ${rollNo})`,
-          queueDepth: currentQueueDepth
-        });
-      }
+    const currentStatus = studentRow.get('isPresent');
+    const isAlreadyPresent = (
+      currentStatus === 'TRUE' ||
+      currentStatus === 'Present' ||
+      currentStatus === true ||
+      String(currentStatus).toLowerCase() === 'true' ||
+      String(currentStatus).toLowerCase() === 'yes' ||
+      dirtyRows.has(normalizedRollNo) // Also check dirty state instantly
+    );
 
-      const currentStatus = studentRow.get('isPresent');
-      const isAlreadyPresent = (
-        currentStatus === 'TRUE' ||
-        currentStatus === 'Present' ||
-        currentStatus === true ||
-        String(currentStatus).toLowerCase() === 'true' ||
-        String(currentStatus).toLowerCase() === 'yes'
-      );
-
-      if (isAlreadyPresent) {
-        console.log(`[API] Student ${rollNo} already marked.`);
-        return res.status(200).json({
-          message: 'Already marked present',
-          queueDepth: currentQueueDepth,
-          student: {
-            name: studentRow.get('Name'),
-            rollNo: studentRow.get('Rollnumber'),
-            branch: studentRow.get('Branch')
-          }
-        });
-      }
-
-      console.log(`[API] Saving status for ${rollNo}...`);
-      studentRow.set('isPresent', 'TRUE');
-      await studentRow.save();
-
-      // IMPORTANT: Invalidate cache for the next person in the queue
-      lastCacheUpdate = 0;
-
+    if (isAlreadyPresent) {
+      console.log(`[API] Student ${rollNo} already marked.`);
       return res.status(200).json({
-        message: 'Marked Present',
-        queueDepth: currentQueueDepth,
+        message: 'Already marked present',
+        queueDepth: dirtyRows.size,
         student: {
           name: studentRow.get('Name'),
           rollNo: studentRow.get('Rollnumber'),
-          branch: studentRow.get('Branch'),
-          semester: studentRow.get('semester')
+          branch: studentRow.get('Branch')
         }
       });
-
-    } catch (error) {
-      console.error('[API ERROR]', error.message);
-      return res.status(500).json({
-        error: error.message,
-        queueDepth: queue.length
-      });
     }
-  });
+
+    console.log(`[API] Marking ${rollNo} internally and placing in dirty queue...`);
+    
+    // Memory override so subsequent instantaneous requests reflect this immediately
+    studentRow.set('isPresent', 'TRUE');
+    
+    // Add to background sync queue
+    dirtyRows.add(normalizedRollNo);
+
+    return res.status(200).json({
+      message: 'Marked Present',
+      queueDepth: dirtyRows.size,
+      student: {
+        name: studentRow.get('Name'),
+        rollNo: studentRow.get('Rollnumber'),
+        branch: studentRow.get('Branch'),
+        semester: studentRow.get('semester')
+      }
+    });
+
+  } catch (error) {
+    console.error('[API ERROR]', error.message);
+    return res.status(500).json({
+      error: error.message,
+      queueDepth: dirtyRows.size
+    });
+  }
 });
 
 

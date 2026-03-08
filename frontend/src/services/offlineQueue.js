@@ -11,7 +11,25 @@ const QUEUE_KEY = 'attendance_offline_queue';
 export const getOfflineQueue = () => {
     try {
         const queue = localStorage.getItem(QUEUE_KEY);
-        return queue ? JSON.parse(queue) : [];
+        if (!queue) return [];
+        
+        const parsed = JSON.parse(queue);
+        const isValidQueue =
+            Array.isArray(parsed) &&
+            parsed.every(
+                (item) =>
+                    item &&
+                    typeof item === 'object' &&
+                    typeof item.rollNo === 'string' &&
+                    typeof item.timestamp === 'number'
+            );
+            
+        if (!isValidQueue) {
+            console.warn('Invalid offline queue data found in localStorage, resetting to empty array');
+            localStorage.setItem(QUEUE_KEY, JSON.stringify([]));
+            return [];
+        }
+        return parsed;
     } catch (e) {
         console.error('Failed to get offline queue', e);
         return [];
