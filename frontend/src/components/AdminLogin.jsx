@@ -23,7 +23,7 @@ const AdminLogin = ({ onBack }) => {
   useEffect(() => {
     if (isAuthenticated) {
       getAttendance().then(data => {
-        const students = data.students || [];
+        const students = Array.isArray(data) ? data : [];
         setAllStudents(students);
 
         const branches = new Set();
@@ -85,7 +85,7 @@ const AdminLogin = ({ onBack }) => {
     setExportMessage(null);
     try {
       const data = await getAttendance();
-      const students = data.students || [];
+      const students = Array.isArray(data) ? data : [];
 
       // Flexible filtering: apply filters only if they are selected
       const filtered = students.filter(s => {
