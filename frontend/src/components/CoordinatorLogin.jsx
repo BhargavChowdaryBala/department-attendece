@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { verifyPassword } from '../services/api';
+import { verifyCoordinatorPassword } from '../services/api';
 
 const CoordinatorLogin = ({ onLogin }) => {
     const [password, setPassword] = useState('');
@@ -12,7 +12,7 @@ const CoordinatorLogin = ({ onLogin }) => {
         setError(null);
 
         try {
-            await verifyPassword(password);
+            await verifyCoordinatorPassword(password);
             onLogin(); // Trigger parent transition
         } catch (err) {
             setError(err.message || 'Invalid password');

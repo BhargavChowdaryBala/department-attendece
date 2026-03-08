@@ -67,6 +67,20 @@ export const verifyPassword = async (password) => {
 };
 
 /**
+ * Verifies the coordinator password.
+ * @param {string} password 
+ * @returns {Promise<Object>}
+ */
+export const verifyCoordinatorPassword = async (password) => {
+    try {
+        const response = await axios.post(`${API_URL}/api/verify-coordinator`, { password });
+        return response.data;
+    } catch (error) {
+        throw new Error(error.response?.data?.error || 'Verification failed');
+    }
+};
+
+/**
  * Clears all attendance records (resets isPresent to FALSE).
  * @param {string} password - The portal password for authorization.
  * @returns {Promise<Object>}

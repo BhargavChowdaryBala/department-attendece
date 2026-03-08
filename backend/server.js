@@ -318,14 +318,26 @@ app.get('/api/attendance', async (req, res) => {
   }
 });
 
-// API to Verify Portal Password
+// API to Verify Portal Password (Admin)
 app.post('/api/verify-password', (req, res) => {
   const { password } = req.body;
   if (!password || password !== process.env.SPOT_REGISTRATION_PASSWORD) {
-    return res.status(401).json({ error: 'Invalid portal password' });
+    return res.status(401).json({ error: 'Invalid admin password' });
   }
   return res.status(200).json({ message: 'Password verified' });
 });
+
+// API to Verify Coordinator Password
+app.post('/api/verify-coordinator', (req, res) => {
+  const { password } = req.body;
+  const expectedPassword = process.env.COORDINATOR_PASSWORD || process.env.SPOT_REGISTRATION_PASSWORD;
+
+  if (!password || password !== expectedPassword) {
+    return res.status(401).json({ error: 'Invalid coordinator password' });
+  }
+  return res.status(200).json({ message: 'Coordinator access granted' });
+});
+
 
 app.get('/', (req, res) => {
   res.send('Attendance Backend is Running');
