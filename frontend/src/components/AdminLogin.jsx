@@ -212,6 +212,17 @@ const AdminLogin = ({ onBack }) => {
           Logout
         </button>
 
+        {/* Reset Attendance Button (Moved to top right under logout) */}
+        <button
+          onClick={() => setShowResetModal(true)}
+          className="absolute top-16 right-4 sm:top-20 sm:right-6 text-red-500 hover:text-white flex items-center gap-2 transition-colors cursor-pointer bg-red-500/10 hover:bg-red-500/30 px-3 py-2 rounded-lg border border-red-500/20 shadow-lg backdrop-blur-md text-sm font-medium"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          Clear All Presentees
+        </button>
+
         <div className="flex flex-col items-center w-full max-w-4xl animate-fade-in-up">
           <div className="w-24 h-24 sm:w-28 sm:h-28 mb-6 rounded-full overflow-hidden bg-slate-900/80 border-[3px] border-primary/40 p-1 shadow-[0_0_25px_rgba(139,92,246,0.3)] flex items-center justify-center transition-all hover:border-primary hover:shadow-[0_0_35px_rgba(139,92,246,0.5)] group backdrop-blur-xl scale-95 sm:scale-100">
             <img src="/logo.png" alt="Smart Attendance Logo" className="w-full h-full rounded-full object-cover drop-shadow-lg transition-transform group-hover:scale-110 duration-500" />
@@ -337,18 +348,7 @@ const AdminLogin = ({ onBack }) => {
                 )}
               </button>
 
-              {/* Reset Attendance Button */}
-              <div className="pt-6 mt-6 border-t border-white/10">
-                <button
-                  onClick={() => setShowResetModal(true)}
-                  className="w-full py-3 bg-red-500/10 hover:bg-red-500/20 text-red-500 font-bold rounded-xl border border-red-500/20 transition-all flex items-center justify-center gap-2 group"
-                >
-                  <svg className="w-5 h-5 group-hover:rotate-180 transition-transform duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                  Clear All Presentees
-                </button>
-              </div>
+              {/* Missing reset attendance button (moved above) */}
             </div>
           </div>
         </div>

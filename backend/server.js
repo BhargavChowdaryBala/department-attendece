@@ -384,6 +384,59 @@ app.post('/api/clear-attendance', async (req, res) => {
   }, 60000); // Higher timeout (60s) for bulk operations
 });
 
+// API to Clear All Attendance (Reset for next event)
+app.post('/api/clear-attendance', async (req, res) => {
+  const { password } = req.body;
+
+  // Basic security check (uses the same HOD/Portal password)
+  if (!password || password !== process.env.SPOT_REGISTRATION_PASSWORD) {
+    return res.status(401).json({ error: 'Unauthorized: Invalid portal password' });
+  }
+
+  console.log('\n[ADMIN] Request received to CLEAR ALL attendance markings.');
+
+  return withLock(async () => {
+    try {
+      const { rows } = await getCachedRows(true); // Force fresh fetch
+      let clearedCount = 0;
+
+      console.log(`[ADMIN] Analyzing ${rows.length} rows for reset...`);
+
+      for (const row of rows) {
+        const currentStatus = row.get('isPresent');
+        const isCurrentlyPresent = (
+          currentStatus === 'TRUE' ||
+          currentStatus === 'Present' ||
+          currentStatus === true ||
+          String(currentStatus).toLowerCase() === 'true'
+        );
+
+        if (isCurrentlyPresent) {
+          row.set('isPresent', 'FALSE');
+          await row.save();
+          clearedCount++;
+        }
+      }
+
+      console.log(`[ADMIN] Successfully cleared ${clearedCount} attendance records.`);
+
+      // Force cache refresh for everyone
+      lastCacheUpdate = 0;
+      cachedRows = null;
+      studentMap = new Map();
+
+      return res.status(200).json({
+        message: `Successfully reset attendance for ${clearedCount} students.`,
+        clearedCount
+      });
+
+    } catch (error) {
+      console.error('[ADMIN ERROR] Failed to clear attendance:', error.message);
+      return res.status(500).json({ error: 'Failed to reset attendance. ' + error.message });
+    }
+  }, 60000); // Higher timeout (60s) for bulk operations
+});
+
 const server = app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
