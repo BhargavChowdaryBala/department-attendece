@@ -42,13 +42,12 @@ export const getAttendance = async () => {
         const response = await axios.get(`${API_URL}/api/attendance`);
         return response.data;
     } catch (error) {
-        console.error("API Error Details:", {
-            message: error.message,
-            response: error.response,
-            status: error.response?.status,
-            data: error.response?.data
-        });
-        throw new Error(error.response?.data?.error || 'Failed to fetch attendance list');
+        const responseData = error.response?.data;
+        const errorMessage = responseData?.error || (error.code === 'ECONNABORTED' || error.message.includes('timeout')
+            ? 'Cloud connection slow. Retrying sync...'
+            : 'Failed to fetch attendance list');
+
+        throw new Error(errorMessage);
     }
 };
 

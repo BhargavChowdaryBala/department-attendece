@@ -39,8 +39,8 @@ const AttendanceList = () => {
 
     const filteredStudents = React.useMemo(() =>
         students.filter(student =>
-            student.name.toLowerCase().includes(deferredSearchTerm.toLowerCase()) ||
-            student.rollNo.toString().toLowerCase().includes(deferredSearchTerm.toLowerCase())
+            (student.name || '').toLowerCase().includes(deferredSearchTerm.toLowerCase()) ||
+            (student.rollNo || '').toString().toLowerCase().includes(deferredSearchTerm.toLowerCase())
         ),
         [students, deferredSearchTerm]
     );
