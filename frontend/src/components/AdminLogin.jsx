@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { verifyPassword, getAttendance } from '../services/api';
+import { verifyPassword, getAttendance, clearAttendance } from '../services/api';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -19,6 +19,12 @@ const AdminLogin = ({ onBack }) => {
   const [availableSemesters, setAvailableSemesters] = useState([]);
   const [stats, setStats] = useState({ total: 0, present: 0, absent: 0 });
   const [allStudents, setAllStudents] = useState([]);
+
+  // Reset features
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
+  const [resetError, setResetError] = useState(null);
+
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -330,11 +336,87 @@ const AdminLogin = ({ onBack }) => {
                   </>
                 )}
               </button>
+
+              {/* Reset Attendance Button */}
+              <div className="pt-6 mt-6 border-t border-white/10">
+                <button
+                  onClick={() => setShowResetModal(true)}
+                  className="w-full py-3 bg-red-500/10 hover:bg-red-500/20 text-red-500 font-bold rounded-xl border border-red-500/20 transition-all flex items-center justify-center gap-2 group"
+                >
+                  <svg className="w-5 h-5 group-hover:rotate-180 transition-transform duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Clear All Presentees
+                </button>
+              </div>
             </div>
           </div>
         </div>
+
+        {/* Reset Confirmation Modal */}
+        {showResetModal && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+            <div className="bg-slate-900 border border-red-500/30 w-full max-w-md rounded-3xl p-6 shadow-2xl relative overflow-hidden animate-slide-up">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-600 to-rose-500"></div>
+
+              <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mb-4 mx-auto border border-red-500/20 shadow-[0_0_20px_rgba(239,68,68,0.2)]">
+                <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+
+              <h3 className="text-2xl font-black text-center text-white mb-2">Are you absolutely sure?</h3>
+              <p className="text-slate-400 text-sm text-center mb-6">
+                This action will mark <strong className="text-red-400">all currently present students</strong> as absent. This is designed to reset the system for a new event. This action cannot be undone.
+              </p>
+
+              {resetError && (
+                <div className="mb-4 p-3 bg-red-950 border border-red-900 text-red-400 text-xs rounded-lg text-center">
+                  {resetError}
+                </div>
+              )}
+
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={async () => {
+                    setIsResetting(true);
+                    setResetError(null);
+                    try {
+                      // We pass the currently active password to verify authorization again
+                      const res = await clearAttendance(password);
+
+                      // Update local state to reflect the wipe
+                      setAllStudents(prev => prev.map(s => ({ ...s, isPresent: false })));
+                      setExportMessage(res.message || "Successfully cleared attendance.");
+                      setShowResetModal(false);
+                    } catch (err) {
+                      setResetError(err.message);
+                    } finally {
+                      setIsResetting(false);
+                    }
+                  }}
+                  disabled={isResetting}
+                  className={`w-full py-3.5 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-bold rounded-xl shadow-lg shadow-red-500/20 transition-all ${isResetting ? 'opacity-70 cursor-not-allowed' : 'active:scale-95'}`}
+                >
+                  {isResetting ? 'Clearing Data...' : 'Yes, Clear All Attendance'}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowResetModal(false);
+                    setResetError(null);
+                  }}
+                  disabled={isResetting}
+                  className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl border border-slate-700 transition-all"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
+
   }
 
   return (

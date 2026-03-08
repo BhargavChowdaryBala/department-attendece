@@ -65,3 +65,17 @@ export const verifyPassword = async (password) => {
         throw new Error(error.response?.data?.error || 'Verification failed');
     }
 };
+
+/**
+ * Clears all attendance records (resets isPresent to FALSE).
+ * @param {string} password - The portal password for authorization.
+ * @returns {Promise<Object>}
+ */
+export const clearAttendance = async (password) => {
+    try {
+        const response = await axios.post(`${API_URL}/api/clear-attendance`, { password });
+        return response.data;
+    } catch (error) {
+        throw new Error(error.response?.data?.error || 'Failed to clear attendance');
+    }
+};
