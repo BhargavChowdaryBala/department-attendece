@@ -22,8 +22,12 @@ export const markAttendance = async (rollNo) => {
         });
 
         // Enhance error object with useful message
-        const errorMessage = error.response?.data?.error || "Connection Error";
+        const responseData = error.response?.data;
+        const errorMessage = responseData?.error || responseData?.suggestion || error.message || "Connection Error";
+
         const enhancedError = new Error(errorMessage);
+        enhancedError.status = error.response?.status;
+        enhancedError.data = responseData;
         enhancedError.originalError = error;
         throw enhancedError;
     }

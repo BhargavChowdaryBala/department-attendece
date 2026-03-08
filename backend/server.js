@@ -108,9 +108,10 @@ async function ensureDocLoaded() {
 let isOperating = false;
 const queue = [];
 let cachedRows = null;
+let studentMap = new Map();
 let lastCacheUpdate = 0;
-const CACHE_TTL = 10000; // 10 seconds for general data
-const SCAN_CACHE_TTL = 2000; // 2 seconds specifically for consecutive scans
+const CACHE_TTL = 30000; // 30 seconds for general data
+const SCAN_CACHE_TTL = 5000; // 5 seconds during active scanning
 
 /**
  * Ensures only one Google Sheets operation (write/heavy read) happens at a time.
@@ -186,14 +187,26 @@ async function processQueue() {
 async function getCachedRows(forceRefresh = false, customTtl = CACHE_TTL) {
   const now = Date.now();
   if (!forceRefresh && cachedRows && (now - lastCacheUpdate < customTtl)) {
-    return cachedRows;
+    return { rows: cachedRows, map: studentMap };
   }
 
   await ensureDocLoaded();
   const sheet = doc.sheetsByIndex[0];
-  cachedRows = await sheet.getRows();
+  const rows = await sheet.getRows();
+
+  // Rebuild the student map (indexing) for O(1) lookups
+  const newMap = new Map();
+  rows.forEach(row => {
+    const roll = row.get('Rollnumber');
+    if (roll) {
+      newMap.set(roll.toString().trim().toLowerCase(), row);
+    }
+  });
+
+  cachedRows = rows;
+  studentMap = newMap;
   lastCacheUpdate = Date.now();
-  return cachedRows;
+  return { rows: cachedRows, map: studentMap };
 }
 
 // API to Mark Attendance
@@ -211,20 +224,17 @@ app.post('/api/mark-attendance', async (req, res) => {
 
     console.log(`\n[API] Processing Scan for: "${rollNo}" (Queue: ${currentQueueDepth})`);
     try {
-      // If a write JUST happened (lastCacheUpdate === 0), force a fresh fetch 
-      // even if we are within the SCAN_CACHE_TTL window, to ensure the next
-      // person in line doesn't see "Absent" for someone who just scanned.
-      const rows = await getCachedRows(lastCacheUpdate === 0, SCAN_CACHE_TTL);
-
-      const studentRow = rows.find(row => {
-        const sheetRoll = row.get('Rollnumber');
-        return sheetRoll && sheetRoll.toString().trim().toLowerCase() === rollNo.toString().trim().toLowerCase();
-      });
+      // Get fresh data or cache. Map lookup is nearly instant (O(1)).
+      const { map } = await getCachedRows(lastCacheUpdate === 0, SCAN_CACHE_TTL);
+      const studentRow = map.get(rollNo.toString().trim().toLowerCase());
 
       if (!studentRow) {
-        return res.status(404).json({
-          error: `Student not registered (Roll: ${rollNo})`,
-          queueDepth: currentQueueDepth
+        console.warn(`[API] Roll Number not found: ${rollNo}`);
+        return res.status(409).json({
+          error: `Student registration not found. Roll Number "${rollNo}" is not in the system.`,
+          queueDepth: currentQueueDepth,
+          rollNo: rollNo,
+          suggestion: "Please check the Roll Number or register the student in the Google Sheet."
         });
       }
 
@@ -282,16 +292,16 @@ app.post('/api/mark-attendance', async (req, res) => {
 // API to Get All Attendance Data
 app.get('/api/attendance', async (req, res) => {
   try {
-    const rows = await getCachedRows();
+    const { rows } = await getCachedRows();
 
-    const students = rows.map(row => ({
-      name: row.get('Name'),
-      rollNo: row.get('Rollnumber'),
-      branch: row.get('Branch'),
+    const students = Array.isArray(rows) ? rows.map(row => ({
+      name: row.get('Name') || 'Unknown',
+      rollNo: row.get('Rollnumber') || 'N/A',
+      branch: row.get('Branch') || 'N/A',
       year: row.get('Year of Study') || row.get('Year') || '',
       semester: row.get('semester') || row.get('Semester') || row.get('Sem') || '',
       isPresent: row.get('isPresent') === 'TRUE' || row.get('isPresent') === 'Present' || row.get('isPresent') === true
-    }));
+    })) : [];
 
     res.json({ students });
   } catch (error) {
