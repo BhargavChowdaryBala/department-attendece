@@ -24,7 +24,7 @@ const AttendanceList = () => {
         try {
             if (showLoading) setLoading(true);
             const data = await getAttendance();
-            setStudents(data.students);
+            setStudents(data);
             setError(null);
         } catch (err) {
             // Only set error if it's the initial load or a critical failure

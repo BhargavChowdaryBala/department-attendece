@@ -118,6 +118,14 @@ const SCAN_CACHE_TTL = 5000; // 5 seconds during active scanning
  * Includes a timeout to prevent deadlocks.
  */
 async function withLock(fn, timeoutMs = 15000) {
+  // Rate limiting: If queue is too deep (e.g., more than 10 people waiting), 
+  // return 429 Too Many Requests to the client.
+  if (queue.length > 10) {
+    const err = new Error('Too many requests. System is currently overwhelmed.');
+    err.status = 429;
+    throw err;
+  }
+
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
       const index = queue.findIndex(item => item.resolve === resolve);
@@ -280,7 +288,7 @@ app.post('/api/mark-attendance', async (req, res) => {
 
     } catch (error) {
       console.error('[API ERROR]', error.message);
-      return res.status(500).json({
+      return res.status(error.status || 500).json({
         error: error.message,
         queueDepth: queue.length
       });
@@ -303,7 +311,7 @@ app.get('/api/attendance', async (req, res) => {
       isPresent: row.get('isPresent') === 'TRUE' || row.get('isPresent') === 'Present' || row.get('isPresent') === true
     })) : [];
 
-    res.json({ students });
+    res.json(students);
   } catch (error) {
     console.error('[API ERROR]', error.message);
     res.status(500).json({ error: error.message });
