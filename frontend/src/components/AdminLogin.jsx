@@ -111,8 +111,16 @@ const AdminLogin = ({ onBack }) => {
         return true;
       });
 
-      // Sort natural alphanumeric by rollNo
+      // Sort primary by section, secondary by rollNo
       filtered.sort((a, b) => {
+        const secA = (a.section || '').toString().toLowerCase();
+        const secB = (b.section || '').toString().toLowerCase();
+        
+        // Primary sort: Section
+        const secCompare = secA.localeCompare(secB, undefined, { numeric: true, sensitivity: 'base' });
+        if (secCompare !== 0) return secCompare;
+
+        // Secondary sort: Roll Number
         const rollA = (a.rollNo || '').toString().toLowerCase();
         const rollB = (b.rollNo || '').toString().toLowerCase();
         return rollA.localeCompare(rollB, undefined, { numeric: true, sensitivity: 'base' });
@@ -131,7 +139,7 @@ const AdminLogin = ({ onBack }) => {
 
       doc.text(reportTitle, 14, 15);
 
-      const tableColumn = ["S.No", "Roll No", "Name", "Branch", "Semester", "Status"];
+      const tableColumn = ["S.No", "Roll No", "Name", "Section", "Branch", "Semester", "Status"];
       const tableRows = [];
 
       filtered.forEach((student, index) => {
@@ -139,6 +147,7 @@ const AdminLogin = ({ onBack }) => {
           index + 1,
           student.rollNo || 'N/A',
           student.name || 'N/A',
+          student.section || 'N/A',
           student.branch || 'N/A',
           student.semester || 'N/A',
           student.isPresent ? 'Present' : 'Absent'

@@ -308,6 +308,7 @@ app.get('/api/attendance', async (req, res) => {
       branch: row.get('Branch') || 'N/A',
       year: row.get('Year of Study') || row.get('Year') || '',
       semester: row.get('semester') || row.get('Semester') || row.get('Sem') || '',
+      section: row.get('Section') || row.get('section') || '',
       isPresent: row.get('isPresent') === 'TRUE' || row.get('isPresent') === 'Present' || row.get('isPresent') === true
     })) : [];
 
@@ -356,28 +357,57 @@ app.post('/api/clear-attendance', async (req, res) => {
 
   return withLock(async () => {
     try {
-      const { rows } = await getCachedRows(true); // Force fresh fetch
+      await ensureDocLoaded();
+      const sheet = doc.sheetsByIndex[0];
+      await sheet.loadHeaderRow();
+      const headers = sheet.headerValues;
+      const isPresentColIndex = headers.indexOf('isPresent');
+
+      if (isPresentColIndex === -1) {
+        throw new Error('Column "isPresent" not found in the sheet.');
+      }
+
+      // We still need rows to know the count and for cache refreshment logic if needed,
+      // but we use loadCells for the actual bulk operation.
+      const rows = await sheet.getRows();
+      if (rows.length === 0) {
+        return res.status(200).json({ message: 'No students found to clear.', clearedCount: 0 });
+      }
+
+      console.log(`[ADMIN] Bulk clearing isPresent for ${rows.length} rows...`);
+
+      // Load the specific column for all data rows (startRowIndex 1 is first data row)
+      await sheet.loadCells({
+        startRowIndex: 1,
+        endRowIndex: rows.length + 1,
+        startColumnIndex: isPresentColIndex,
+        endColumnIndex: isPresentColIndex + 1
+      });
+
       let clearedCount = 0;
+      for (let i = 0; i < rows.length; i++) {
+        const cell = sheet.getCell(i + 1, isPresentColIndex);
+        const currentValue = cell.value;
 
-      console.log(`[ADMIN] Analyzing ${rows.length} rows for reset...`);
-
-      for (const row of rows) {
-        const currentStatus = row.get('isPresent');
-        const isCurrentlyPresent = (
-          currentStatus === 'TRUE' ||
-          currentStatus === 'Present' ||
-          currentStatus === true ||
-          String(currentStatus).toLowerCase() === 'true'
+        // Check if it's currently marked as present
+        const isPresent = (
+          currentValue === 'TRUE' ||
+          currentValue === 'Present' ||
+          currentValue === true ||
+          (typeof currentValue === 'string' && currentValue.toLowerCase() === 'true')
         );
 
-        if (isCurrentlyPresent) {
-          row.set('isPresent', 'FALSE');
-          await row.save();
+        if (isPresent) {
+          cell.value = 'FALSE';
           clearedCount++;
         }
       }
 
-      console.log(`[ADMIN] Successfully cleared ${clearedCount} attendance records.`);
+      if (clearedCount > 0) {
+        await sheet.saveUpdatedCells();
+      }
+
+      console.log(`[ADMIN] Successfully cleared ${clearedCount} attendance records using bulk update.`);
 
       // Force cache refresh for everyone
       lastCacheUpdate = 0;
