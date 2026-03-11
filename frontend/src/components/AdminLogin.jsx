@@ -131,11 +131,12 @@ const AdminLogin = ({ onBack }) => {
 
       doc.text(reportTitle, 14, 15);
 
-      const tableColumn = ["Roll No", "Name", "Branch", "Semester", "Status"];
+      const tableColumn = ["S.No", "Roll No", "Name", "Branch", "Semester", "Status"];
       const tableRows = [];
 
-      filtered.forEach(student => {
+      filtered.forEach((student, index) => {
         const studentData = [
+          index + 1,
           student.rollNo || 'N/A',
           student.name || 'N/A',
           student.branch || 'N/A',
