@@ -398,7 +398,7 @@ app.post('/api/clear-attendance', async (req, res) => {
         );
 
         if (isPresent) {
-          cell.value = 'FALSE';
+          cell.value = ''; // Blank the cell to reduce write operations/limits
           clearedCount++;
         }
       }
