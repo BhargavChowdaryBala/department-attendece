@@ -111,7 +111,7 @@ const AdminLogin = ({ onBack }) => {
         return true;
       });
 
-      // Sort strictly: 1. Section, 2. numeric suffix vs alpha suffix, 3. alphabetic comparison
+      // Sort strictly: 1. Section, 2. Roll Number Prefix, 3. Roll Number Suffix (Numbers first)
       filtered.sort((a, b) => {
         const secA = (a.section || '').toString().toLowerCase();
         const secB = (b.section || '').toString().toLowerCase();
@@ -124,22 +124,26 @@ const AdminLogin = ({ onBack }) => {
         const rollA = (a.rollNo || '').toString().trim();
         const rollB = (b.rollNo || '').toString().trim();
         
+        // Split roll number into prefix (all but last 2) and suffix (last 2)
+        const prefixA = rollA.slice(0, -2);
+        const prefixB = rollB.slice(0, -2);
         const sufA = rollA.slice(-2);
         const sufB = rollB.slice(-2);
         
-        const isNumA = /^\d+$/.test(sufA);
-        const isNumB = /^\d+$/.test(sufB);
+        // A. Compare Prefixes first
+        const prefixCompare = prefixA.localeCompare(prefixB, undefined, { numeric: true, sensitivity: 'base' });
+        if (prefixCompare !== 0) return prefixCompare;
         
-        // Numbers (01-99) come before Alphabets (A1, B2...)
-        if (isNumA && !isNumB) return -1;
-        if (!isNumA && isNumB) return 1;
+        // B. If prefixes are identical, compare Suffixes with Numeric Preference
+        const isSufNumA = /^\d+$/.test(sufA);
+        const isSufNumB = /^\d+$/.test(sufB);
         
-        // If same category (both numeric or both alpha), compare the suffix values specifically first
-        const sufCompare = sufA.localeCompare(sufB, undefined, { numeric: true });
-        if (sufCompare !== 0) return sufCompare;
+        // Numeric suffixes (01-99) come before alphanumeric/alphabet suffixes (A1, B2...)
+        if (isSufNumA && !isSufNumB) return -1;
+        if (!isSufNumA && isSufNumB) return 1;
         
-        // Fallback to full roll number
-        return rollA.localeCompare(rollB, undefined, { numeric: true, sensitivity: 'base' });
+        // If both in the same category, use standard alphabetic sort for suffixes
+        return sufA.localeCompare(sufB, undefined, { numeric: true, sensitivity: 'base' });
       });
 
       if (filtered.length === 0) {

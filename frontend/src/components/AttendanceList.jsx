@@ -43,7 +43,7 @@ const AttendanceList = () => {
             (student.rollNo || '').toString().toLowerCase().includes(deferredSearchTerm.toLowerCase())
         );
 
-        // Sorting Logic: 1. Section, 2. Numeric Suffix > Alpha Suffix, 3. Standard Roll
+        // Sorting Logic: 1. Section, 2. Roll Number Prefix, 3. Roll Number Suffix (Numbers first)
         return filtered.sort((a, b) => {
             const secA = (a.section || '').toString().toLowerCase();
             const secB = (b.section || '').toString().toLowerCase();
@@ -56,21 +56,23 @@ const AttendanceList = () => {
             const rollA = (a.rollNo || '').toString().trim();
             const rollB = (b.rollNo || '').toString().trim();
 
+            const prefixA = rollA.slice(0, -2);
+            const prefixB = rollB.slice(0, -2);
             const sufA = rollA.slice(-2);
             const sufB = rollB.slice(-2);
 
-            const isNumA = /^\d+$/.test(sufA);
-            const isNumB = /^\d+$/.test(sufB);
+            // A. Compare Prefixes
+            const prefixCompare = prefixA.localeCompare(prefixB, undefined, { numeric: true, sensitivity: 'base' });
+            if (prefixCompare !== 0) return prefixCompare;
 
-            // Numbers (01-99) come before Alphabets (A1, B2...)
-            if (isNumA && !isNumB) return -1;
-            if (!isNumA && isNumB) return 1;
+            // B. If prefixes are identical, compare Suffixes (Numeric Priority)
+            const isSufNumA = /^\d+$/.test(sufA);
+            const isSufNumB = /^\d+$/.test(sufB);
 
-            // Same category, compare suffixes
-            const sufCompare = sufA.localeCompare(sufB, undefined, { numeric: true });
-            if (sufCompare !== 0) return sufCompare;
+            if (isSufNumA && !isSufNumB) return -1;
+            if (!isSufNumA && isSufNumB) return 1;
 
-            return rollA.localeCompare(rollB, undefined, { numeric: true, sensitivity: 'base' });
+            return sufA.localeCompare(sufB, undefined, { numeric: true, sensitivity: 'base' });
         });
     }, [students, deferredSearchTerm]);
 
