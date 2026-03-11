@@ -37,13 +37,42 @@ const AttendanceList = () => {
         }
     };
 
-    const filteredStudents = React.useMemo(() =>
-        students.filter(student =>
+    const sortedAndFilteredStudents = React.useMemo(() => {
+        const filtered = students.filter(student =>
             (student.name || '').toLowerCase().includes(deferredSearchTerm.toLowerCase()) ||
             (student.rollNo || '').toString().toLowerCase().includes(deferredSearchTerm.toLowerCase())
-        ),
-        [students, deferredSearchTerm]
-    );
+        );
+
+        // Sorting Logic: 1. Section, 2. Numeric Suffix > Alpha Suffix, 3. Standard Roll
+        return filtered.sort((a, b) => {
+            const secA = (a.section || '').toString().toLowerCase();
+            const secB = (b.section || '').toString().toLowerCase();
+
+            // 1. Primary sort: Section
+            const secCompare = secA.localeCompare(secB, undefined, { numeric: true, sensitivity: 'base' });
+            if (secCompare !== 0) return secCompare;
+
+            // 2. Secondary sort: Roll Number Logic
+            const rollA = (a.rollNo || '').toString().trim();
+            const rollB = (b.rollNo || '').toString().trim();
+
+            const sufA = rollA.slice(-2);
+            const sufB = rollB.slice(-2);
+
+            const isNumA = /^\d+$/.test(sufA);
+            const isNumB = /^\d+$/.test(sufB);
+
+            // Numbers (01-99) come before Alphabets (A1, B2...)
+            if (isNumA && !isNumB) return -1;
+            if (!isNumA && isNumB) return 1;
+
+            // Same category, compare suffixes
+            const sufCompare = sufA.localeCompare(sufB, undefined, { numeric: true });
+            if (sufCompare !== 0) return sufCompare;
+
+            return rollA.localeCompare(rollB, undefined, { numeric: true, sensitivity: 'base' });
+        });
+    }, [students, deferredSearchTerm]);
 
     const stats = {
         total: students.length,
@@ -55,15 +84,16 @@ const AttendanceList = () => {
         if (!students.length) return;
 
         // Create CSV Header
-        const headers = ['Name', 'Roll Number', 'Branch', 'Semester', 'Status'];
+        const headers = ['Name', 'Roll Number', 'Section', 'Branch', 'Semester', 'Status'];
 
-        // Map data to CSV rows
+        // Use the same sorted list for CSV export
         const csvRows = [
             headers.join(','), // Header row
-            ...students.map(student => {
+            ...sortedAndFilteredStudents.map(student => {
                 const row = [
                     `"${student.name}"`, // Quote strings to handle commas
                     `"${student.rollNo}"`,
+                    `"${student.section || 'N/A'}"`,
                     `"${student.branch}"`,
                     `"${student.semester || 'N/A'}"`,
                     student.isPresent ? 'Present' : 'Absent'
@@ -154,18 +184,20 @@ const AttendanceList = () => {
                             <tr className="text-slate-400 text-[10px] uppercase tracking-widest">
                                 <th className="p-4 font-black">Name</th>
                                 <th className="p-4 font-black">Roll Number</th>
+                                <th className="p-4 font-black text-center">Section</th>
                                 <th className="p-4 font-black">Branch</th>
                                 <th className="p-4 font-black text-center">Status</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-white/5 text-sm">
-                            {filteredStudents.map((student, idx) => (
+                            {sortedAndFilteredStudents.map((student, idx) => (
                                 <tr
                                     key={idx}
                                     className="hover:bg-white/5 transition-colors group"
                                 >
                                     <td className="p-4 text-white font-medium group-hover:text-primary transition-colors">{student.name}</td>
                                     <td className="p-4 text-slate-400 font-mono text-xs">{student.rollNo}</td>
+                                    <td className="p-4 text-center text-slate-400 font-bold text-xs uppercase">{student.section || 'N/A'}</td>
                                     <td className="p-4 text-slate-500 uppercase text-[10px] font-black tracking-wider">{student.branch}</td>
                                     <td className="p-4 text-center">
                                         <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-tighter transition-all ${student.isPresent

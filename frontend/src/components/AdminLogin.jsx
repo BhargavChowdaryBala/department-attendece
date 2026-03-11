@@ -111,18 +111,34 @@ const AdminLogin = ({ onBack }) => {
         return true;
       });
 
-      // Sort primary by section, secondary by rollNo
+      // Sort strictly: 1. Section, 2. numeric suffix vs alpha suffix, 3. alphabetic comparison
       filtered.sort((a, b) => {
         const secA = (a.section || '').toString().toLowerCase();
         const secB = (b.section || '').toString().toLowerCase();
         
-        // Primary sort: Section
+        // 1. Primary sort: Section
         const secCompare = secA.localeCompare(secB, undefined, { numeric: true, sensitivity: 'base' });
         if (secCompare !== 0) return secCompare;
 
-        // Secondary sort: Roll Number
-        const rollA = (a.rollNo || '').toString().toLowerCase();
-        const rollB = (b.rollNo || '').toString().toLowerCase();
+        // 2. Secondary sort: Roll Number Logic
+        const rollA = (a.rollNo || '').toString().trim();
+        const rollB = (b.rollNo || '').toString().trim();
+        
+        const sufA = rollA.slice(-2);
+        const sufB = rollB.slice(-2);
+        
+        const isNumA = /^\d+$/.test(sufA);
+        const isNumB = /^\d+$/.test(sufB);
+        
+        // Numbers (01-99) come before Alphabets (A1, B2...)
+        if (isNumA && !isNumB) return -1;
+        if (!isNumA && isNumB) return 1;
+        
+        // If same category (both numeric or both alpha), compare the suffix values specifically first
+        const sufCompare = sufA.localeCompare(sufB, undefined, { numeric: true });
+        if (sufCompare !== 0) return sufCompare;
+        
+        // Fallback to full roll number
         return rollA.localeCompare(rollB, undefined, { numeric: true, sensitivity: 'base' });
       });
 

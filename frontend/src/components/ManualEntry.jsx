@@ -81,6 +81,11 @@ const ManualEntry = () => {
                                 <div className="mt-3 p-3 bg-black/20 rounded-lg border border-white/5 mx-auto max-w-[200px]">
                                     <span className="font-bold block text-white text-lg">{result.student.name}</span>
                                     <span className="text-white/60 font-mono text-sm">{result.student.rollNo}</span>
+                                    {result.student.section && (
+                                        <span className="text-primary/80 font-bold text-[10px] uppercase block mt-1 tracking-widest border-t border-white/5 pt-1">
+                                            SEC: {result.student.section}
+                                        </span>
+                                    )}
                                 </div>
                             )}
                         </>
