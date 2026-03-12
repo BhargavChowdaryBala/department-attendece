@@ -214,7 +214,7 @@ const AttendanceList = () => {
                         </tbody>
                     </table>
                 </div>
-                {filteredStudents.length === 0 && (
+                {sortedAndFilteredStudents.length === 0 && (
                     <div className="text-center py-20">
                         <div className="text-slate-600 mb-2">
                             <svg className="w-12 h-12 mx-auto opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -228,7 +228,7 @@ const AttendanceList = () => {
 
             <div className="mt-6 flex items-center justify-between px-2">
                 <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">
-                    Showing {filteredStudents.length} of {students.length} records
+                    Showing {sortedAndFilteredStudents.length} of {students.length} records
                 </div>
                 {searchTerm && (
                     <button
